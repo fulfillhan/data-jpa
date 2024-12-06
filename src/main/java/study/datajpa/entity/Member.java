@@ -1,27 +1,42 @@
 package study.datajpa.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import lombok.Getter;
-import lombok.Setter;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.List;
 
 @Entity
-@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@ToString(of = {"id","username","age"})
+@Getter @Setter  //연습을 위해 setter 선언
 public class Member {
 
     @Id
     @GeneratedValue
+    @Column(name = "member_id")
     private Long id;
-    private String userName;
+    private String username;
+    private int age;
 
-    // 엔티티 기본적으로 기본생성자 있어야 하지만, protected 까지 열어둬야함. 프록싱기술사용할때 사용하기 위해서
-    protected Member() {
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "team_id")
+    private Team team;
 
+    public Member(String username){
+        this.username = username;
     }
 
-    public Member(String userName){
-        this.userName = userName;
+    public Member(String username, int age, Team team) {
+        this.username = username;
+        this.age = age;
+        if(team != null){
+            changeTeam(team);
+        }
+    }
+
+    public void changeTeam(Team team){
+        this.team = team;
+        team.getMembers().add(this);
     }
 
 }
