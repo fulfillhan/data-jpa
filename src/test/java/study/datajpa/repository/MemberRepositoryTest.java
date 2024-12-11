@@ -1,8 +1,14 @@
 package study.datajpa.repository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 import study.datajpa.dto.MemberDto;
@@ -10,20 +16,24 @@ import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
+
 @SpringBootTest
 @Transactional
 @Rollback(value = false)
 class MemberRepositoryTest {
 
-    @Autowired MemberRepository memberRepository;
-    @Autowired TeamRepository teamRepository;
+    @Autowired
+    MemberRepository memberRepository;
+    @Autowired
+    TeamRepository teamRepository;
+    @PersistenceContext
+    EntityManager em;
 
     @Test
-    void testMember(){
+    void testMember() {
 
         System.out.println("memberRepository.getClass() = " + memberRepository.getClass());
         //memberRepository.getClass() = class jdk.proxy3.$Proxy127
@@ -41,7 +51,7 @@ class MemberRepositoryTest {
     }
 
     @Test
-    public void basicCrud(){
+    public void basicCrud() {
         Member member1 = new Member("member1");
         Member member2 = new Member("member2");
         memberRepository.save(member1);
@@ -72,9 +82,9 @@ class MemberRepositoryTest {
     }
 
     @Test
-    public void findByUsernameAndGraterThan(){
-        Member member1 = new Member("AAA",10);
-        Member member2 = new Member("AAA",20);
+    public void findByUsernameAndGraterThan() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("AAA", 20);
 
         memberRepository.save(member1);
         memberRepository.save(member2);
@@ -88,9 +98,9 @@ class MemberRepositoryTest {
     }
 
     @Test
-    public void testQuery(){
-        Member member1 = new Member("AAA",10);
-        Member member2 = new Member("AAA",20);
+    public void testQuery() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("AAA", 20);
 
         memberRepository.save(member1);
         memberRepository.save(member2);
@@ -102,9 +112,9 @@ class MemberRepositoryTest {
     }
 
     @Test
-    public void findUsernameTest(){
-        Member member1 = new Member("AAA",10);
-        Member member2 = new Member("AAA",20);
+    public void findUsernameTest() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("AAA", 20);
 
         memberRepository.save(member1);
         memberRepository.save(member2);
@@ -118,13 +128,12 @@ class MemberRepositoryTest {
 
     //dto로 조회하기
     @Test
-    public void findUserDtoTest(){
+    public void findUserDtoTest() {
         Team team = new Team("teamA");
         teamRepository.save(team);
 
-        Member member1 = new Member("AAA",10);
+        Member member1 = new Member("AAA", 10);
         memberRepository.save(member1);
-
 
         List<MemberDto> memberDto = memberRepository.findMemberDto();
         for (MemberDto dto : memberDto) {
@@ -134,9 +143,9 @@ class MemberRepositoryTest {
     }
 
     @Test
-    public void returnType(){
-        Member member1 = new Member("AAA",10);
-        Member member2 = new Member("AAA",20);
+    public void returnType() {
+        Member member1 = new Member("AAA", 10);
+        Member member2 = new Member("AAA", 20);
 
         memberRepository.save(member1);
         memberRepository.save(member2);
@@ -147,8 +156,51 @@ class MemberRepositoryTest {
         // 실행결과 0
     }
 
+    // 페이징 조건과 정열 조건 설정
+    @Test
+    public void page() {
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 10));
+        memberRepository.save(new Member("member3", 10));
+        memberRepository.save(new Member("member4", 10));
+        memberRepository.save(new Member("member5", 10));
 
+        int age = 10;
 
+        PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
+        Page<Member> page = memberRepository.findByAge(age, pageRequest);
+
+        //페이지를 유지하면서 엔티티->DTO로 변환하기
+        Page<MemberDto> memberDtos = page.map(m-> new MemberDto(m.getId(),m.getUsername(),m.getTeam().getName()));
+
+        List<Member> content = page.getContent(); // 0~3개의 내용을 가져온다.
+        assertThat(content.size()).isEqualTo(3); //조회된 데이터 수
+        assertThat(page.getTotalElements()).isEqualTo(5); //전체 데이터 수
+        assertThat(page.getNumber()).isEqualTo(0); //페이지 번호
+        assertThat(page.getTotalPages()).isEqualTo(2); //전체 페이지 번호
+        assertThat(page.isFirst()).isTrue(); //첫번째 항목인가?
+        assertThat(page.hasNext()).isTrue(); //다음 페이지가 있는가
+    }
+
+    //벌크 수정 쿼리와 주의점 적용(영속성 컨텍스트를 고려해야 한다.)
+    @Test
+    public void bulkUpdate(){
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 19));
+        memberRepository.save(new Member("member3", 20));
+        memberRepository.save(new Member("member4", 21));
+        memberRepository.save(new Member("member5", 22));
+
+        //주의점 -> 영속성 컨텍스트를 무시하기 때문에 영속성컨텍스트에 있는 데이터와 db의 데이터가 다르다(데이터의 정합성 문제)
+        int resultCount = memberRepository.bulkAgePlus(20);
+       /* em.flush();//남아 있는 데이터 db 반영한 후
+        em.clear();//영속성 컨텍스트에 있는 데이터를 날린다.*/
+
+        Member member5 = memberRepository.findMemberByUsername("member5");
+        System.out.println("member5 = " + member5);  //실행결과 22
+
+        assertThat(resultCount).isEqualTo(3);
+    }
 
 
 }
