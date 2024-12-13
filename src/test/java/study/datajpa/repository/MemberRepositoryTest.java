@@ -202,5 +202,33 @@ class MemberRepositoryTest {
         assertThat(resultCount).isEqualTo(3);
     }
 
+    @Test
+    public void findMemberLazy(){
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+        Member member1 = new Member("member1", 10, teamA);
+        Member member2 = new Member("member2", 10, teamB);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        em.flush();
+        em.clear();
+
+        //select member 쿼리만 진행됨
+        //List<Member> members = memberRepository.findAll();
+        //fetch join 성능 최적화(한번에 필요한 엔티티 쿼리를 가져온다-> 이때 가져오는 team 엔티티는 프록시가 아니라 진짜 객체로 즉시로딩함)
+        List<Member> members = memberRepository.findMemberFetchJoin();
+        for (Member member : members) {
+            System.out.println("member.getUsername() = " + member.getUsername());
+            //연관된 데이터를 가져오려고 해서 team 쿼리를 추가해서 n+1 문제 발생
+            //team 프록시 객체로 가져옴
+            System.out.println("member.getTeam().getClass() = " + member.getTeam().getClass());
+            System.out.println("member.getTeam().getName() = " + member.getTeam().getName());
+        }
+
+    }
+
 
 }
