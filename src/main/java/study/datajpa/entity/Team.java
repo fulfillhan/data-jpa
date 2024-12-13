@@ -10,7 +10,7 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @ToString(of = {"id","name"})
 @Getter @Setter //연습을 위해 setter 선언
-public class Team {
+public class Team extends JpaBasisEntity{
 
     @Id
     @GeneratedValue
