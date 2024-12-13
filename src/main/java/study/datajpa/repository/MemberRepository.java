@@ -2,7 +2,6 @@ package study.datajpa.repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -16,7 +15,7 @@ import java.util.Optional;
 
 //스프링 데이터 jpa 적용
 // @Repository -> 생략가능하다. 컴포넌트스캔 처리를 jpa가 자동으로 처리한다.
-public interface MemberRepository extends JpaRepository<Member, Long> {
+public interface MemberRepository extends JpaRepository<Member, Long>, MemberRepositoryCustom {
 
     //1. 메서드 이름으로 쿼리 생성
     List<Member> findByUsernameAndAgeGreaterThan(String username, int age);
